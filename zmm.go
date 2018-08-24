@@ -77,7 +77,11 @@ func (data *DataInfo) show() {
 	for _, name := range snames {
 		n = dataMap[name]
 		nf := float64(n)
-		fmt.Printf("%s\t %d \t %.3f \n", name, n, nf/total)
+		if *T {
+			fmt.Printf("%5s  %9d  %9.3f \n", name, n, nf/total)
+		} else {
+			fmt.Printf("%9d  %9.3f \n", n, nf/total)
+		}
 	}
 }
 
