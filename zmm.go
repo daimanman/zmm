@@ -14,7 +14,8 @@ import (
 
 var (
 	T = flag.Bool("T", false, "标记是否显示title")
-	C = flag.String("C", "N", "")
+	C = flag.String("C", "N", "统计字符数")
+	N = flag.Int("N", 2, "统计第几列中的字符")
 )
 var wg sync.WaitGroup
 
@@ -73,7 +74,9 @@ func (data *DataInfo) show() {
 	var n int
 	str := strings.Repeat("*", 20)
 	fmt.Printf("\n\n%s%s%s\n", str, data.Filename, str)
-	fmt.Printf("SN=%s COL=%s Total=%d \n\n", data.SN, data.COL, data.Total)
+
+	fmt.Printf(" Total=%d \n\n", data.Total)
+
 	for _, name := range snames {
 		n = dataMap[name]
 		nf := float64(n)
@@ -103,6 +106,7 @@ func dealFile(fileFullPath string) {
 		Snames:   make([]string, 0),
 	}
 	rd := bufio.NewReader(file)
+
 	i := 0
 	for {
 		line, err1 := rd.ReadString('\n')
@@ -111,7 +115,10 @@ func dealFile(fileFullPath string) {
 		}
 		bs := strings.Fields(line)
 		if len(bs) > 1 {
-			n := strings.Count(bs[1], *C)
+			if *N < 1 {
+				*N = 1
+			}
+			n := strings.Count(bs[*N-1], *C)
 			if n > 0 {
 				total += n
 				data.DataMap[bs[0]] = n
@@ -142,5 +149,4 @@ func main() {
 		go dealFile(file)
 	}
 	wg.Wait()
-
 }
