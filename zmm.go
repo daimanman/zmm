@@ -10,14 +10,23 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 var (
 	T = flag.Bool("T", false, "标记是否显示title")
 	C = flag.String("C", "N", "统计字符数")
 	N = flag.Int("N", 2, "统计第几列中的字符")
+	h = flag.Bool("h", false, "show useage ")
 )
 var wg sync.WaitGroup
+
+var useage = `
+    -T show title or not default false
+    -C count char default 'N'
+    -N count which column default 2
+    
+`
 
 type DataInfo struct {
 	Filename string         //文件名称
@@ -79,12 +88,19 @@ func (data *DataInfo) show() {
 
 	for _, name := range snames {
 		n = dataMap[name]
+		bn := dataMap[name+"_BC"]
 		nf := float64(n)
+		bnf := float64(bn)
+
 		if *T {
-			fmt.Printf("%5s  %9d  %9.3f \n", name, n, nf/total)
+			//fmt.Printf("%5s  %9d  %9.4f \n", name, n, nf/bnf)
+			//fmt.Printf("%5s  %9d  %9.2f%% %9.2f%% \n", name, n, (nf/total)*100, (nf/bnf)*100)
+			fmt.Printf("%9d  %9.4f %9.4f \n", n, nf/total, nf/bnf)
 		} else {
-			fmt.Printf("%9d  %9.3f \n", n, nf/total)
+			fmt.Printf("%5s  %9d   %9.2f%% \n", name, n, (nf/bnf)*100)
+
 		}
+
 	}
 }
 
@@ -121,7 +137,9 @@ func dealFile(fileFullPath string) {
 			n := strings.Count(bs[*N-1], *C)
 			if n > 0 {
 				total += n
-				data.DataMap[bs[0]] = n
+				sname := bs[0]
+				data.DataMap[sname] = n
+				data.DataMap[sname+"_BC"] = utf8.RuneCountInString(bs[*N-1])
 				data.Snames = append(data.Snames, bs[0])
 			}
 			if i == 0 {
@@ -138,6 +156,10 @@ func dealFile(fileFullPath string) {
 
 func main() {
 	flag.Parse()
+	if *h {
+		fmt.Println(useage)
+		return
+	}
 	files := GetFiles(flag.Args())
 	lenth := len(files)
 	if len(files) == 0 {
