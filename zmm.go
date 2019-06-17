@@ -25,13 +25,19 @@ var (
 var wg sync.WaitGroup
 
 var useage = `
-	-p 百分比显示
+	-p 非百分比显示
     -C 统计的字符 默认为 'N'
     -N 字符在第几列中 默认统计第二列
 	-BF 编号对应文件
 	-T 是否显示原来的数字编号 默认显示
 	-BH 编号对应文件，第一列为编号 第二列为编号对应的名字
-    
+
+	Example:
+	编号转换,bh.txt文件中设置编号对应关系: zmm  -BH="bh.txt" -p c93d8m80p60.phy
+	默认输出,未带编号转换: zmm c93d8m80p60.phy
+
+	Note:
+	如果在使用中碰到什么问题,请联系作者 QQ:1018793423
 `
 
 type DataInfo struct {
