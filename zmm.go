@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -14,17 +15,22 @@ import (
 )
 
 var (
-	T = flag.Bool("T", false, "标记是否显示title")
+	p = flag.Bool("p",false,"百分比显示")
 	C = flag.String("C", "N", "统计字符数")
 	N = flag.Int("N", 2, "统计第几列中的字符")
 	h = flag.Bool("h", false, "show useage ")
+	T = flag.Bool("T",false,"是否显示原来的编号")
+	BH = flag.String("BH","","编号名称对应文件")
 )
 var wg sync.WaitGroup
 
 var useage = `
-    -T show title or not default false
-    -C count char default 'N'
-    -N count which column default 2
+	-p 百分比显示
+    -C 统计的字符 默认为 'N'
+    -N 字符在第几列中 默认统计第二列
+	-BF 编号对应文件
+	-T 是否显示原来的数字编号 默认显示
+	-BH 编号对应文件，第一列为编号 第二列为编号对应的名字
     
 `
 
@@ -35,6 +41,7 @@ type DataInfo struct {
 	SN       string         //个体数
 	COL      string         //列数
 	Snames   []string
+	BhMap *map[string]string //编号对应名称
 }
 
 func TestPath() {
@@ -76,10 +83,33 @@ func GetFiles(paths []string) []string {
 	return fs
 }
 
+func parseBhMap(bh string) map[string]string{
+	bhMap := map[string]string{}
+	if bh == ""{
+		return bhMap
+	}
+	f,err := os.Open(bh)
+	if err != nil  {
+		panic(err)
+		return bhMap
+	}
+	scannerF := bufio.NewScanner(f)
+	for scannerF.Scan(){
+		line := scannerF.Text()
+		fsList := strings.Fields(strings.TrimSpace(line))
+		if len(fsList) >= 2{
+			bhMap[fsList[0]] = fsList[1]
+		}
+	}
+	if err := scannerF.Err(); err != nil {
+		log.Println("读取文件 err ",err)
+	}
+	return bhMap
+}
 func (data *DataInfo) show() {
 	snames := data.Snames
 	dataMap := data.DataMap
-	total := float64(data.Total)
+	bhMap := data.BhMap
 	var n int
 	str := strings.Repeat("*", 20)
 	fmt.Printf("\n\n%s%s%s\n", str, data.Filename, str)
@@ -91,20 +121,19 @@ func (data *DataInfo) show() {
 		bn := dataMap[name+"_BC"]
 		nf := float64(n)
 		bnf := float64(bn)
-
-		if *T {
-			//fmt.Printf("%5s  %9d  %9.4f \n", name, n, nf/bnf)
-			//fmt.Printf("%5s  %9d  %9.2f%% %9.2f%% \n", name, n, (nf/total)*100, (nf/bnf)*100)
-			fmt.Printf("%9d  %9.4f %9.4f \n", n, nf/total, nf/bnf)
-		} else {
-			fmt.Printf("%5s  %9d   %9.2f%% \n", name, n, (nf/bnf)*100)
-
+		bhName := (*bhMap)[name]
+		if bhName == ""{
+			bhName = name
 		}
-
+		if !*p {
+			fmt.Printf("%5s %9d   %9.2f%% \n", bhName, n, (nf/bnf)*100)
+		}else {
+			fmt.Printf("%5s %9d   %9.4f \n", bhName, n, (nf/bnf))
+		}
 	}
 }
 
-func dealFile(fileFullPath string) {
+func dealFile(fileFullPath string,bhMap *map[string]string) {
 	file, err := os.Open(fileFullPath)
 	if err != nil {
 		fmt.Println(fileFullPath, err.Error())
@@ -130,11 +159,13 @@ func dealFile(fileFullPath string) {
 			break
 		}
 		bs := strings.Fields(line)
+		// fmt.Printf("bs line is %d C=%s \n", len(bs), *C)
 		if len(bs) > 1 {
 			if *N < 1 {
 				*N = 1
 			}
 			n := strings.Count(bs[*N-1], *C)
+			// fmt.Printf("count n is %d \n", n)
 			if n > 0 {
 				total += n
 				sname := bs[0]
@@ -150,6 +181,7 @@ func dealFile(fileFullPath string) {
 		i++
 	}
 	data.Total = total
+	data.BhMap = bhMap
 	data.show()
 
 }
@@ -160,6 +192,7 @@ func main() {
 		fmt.Println(useage)
 		return
 	}
+	bhMap := parseBhMap(*BH)
 	files := GetFiles(flag.Args())
 	lenth := len(files)
 	if len(files) == 0 {
@@ -168,7 +201,7 @@ func main() {
 	}
 	wg.Add(lenth)
 	for _, file := range files {
-		go dealFile(file)
+		go dealFile(file,&bhMap)
 	}
 	wg.Wait()
 }
