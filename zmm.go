@@ -19,8 +19,9 @@ var (
 	C = flag.String("C", "N", "统计字符数")
 	N = flag.Int("N", 2, "统计第几列中的字符")
 	h = flag.Bool("h", false, "show useage ")
-	T = flag.Bool("T",false,"是否显示原来的编号")
 	BH = flag.String("BH","","编号名称对应文件")
+	T = flag.String("T","a","操作类型")
+
 )
 var wg sync.WaitGroup
 
@@ -29,8 +30,8 @@ var useage = `
     -C 统计的字符 默认为 'N'
     -N 字符在第几列中 默认统计第二列
 	-BF 编号对应文件
-	-T 是否显示原来的数字编号 默认显示
 	-BH 编号对应文件，第一列为编号 第二列为编号对应的名字
+	-T 操作类型 a:计算百分比 b:替换编号
 
 	Example:
 	编号转换,bh.txt文件中设置编号对应关系: zmm  -BH="bh.txt" -p c93d8m80p60.phy
@@ -200,14 +201,65 @@ func main() {
 	}
 	bhMap := parseBhMap(*BH)
 	files := GetFiles(flag.Args())
-	lenth := len(files)
-	if len(files) == 0 {
-		fmt.Printf("未找到文件,请检查参数是否在正确 \n")
-		return
+
+	tName := strings.ToLower(*T)
+	//计算百分比
+	if  tName == "a" {
+		lenth := len(files)
+		if len(files) == 0 {
+			fmt.Printf("未找到文件,请检查参数是否在正确 \n")
+			return
+		}
+		wg.Add(lenth)
+		for _, file := range files {
+			go dealFile(file,&bhMap)
+		}
+		wg.Wait()
 	}
-	wg.Add(lenth)
-	for _, file := range files {
-		go dealFile(file,&bhMap)
+
+	//简单的替换编号
+	if tName == "b"{
+		if len(files) == 0 {
+			panic("请指定要转换的文件")
+		}
+
+		if *BH == "" {
+
+			panic(fmt.Sprintf("%s %s\n","未指定编号替换文件"," 请通过 -BH 参数指定, Example: -BH=bh.txt"))
+		}
+
+		transFile,err  := os.Open(files[0])
+		if err != nil {
+			panic(err)
+		}
+		fileReader := bufio.NewReader(transFile)
+		readEnd := false
+		for !readEnd{
+			line,readErr := fileReader.ReadString('\n')
+			if readErr != nil {
+				if readErr == io.EOF {
+					readEnd = true
+				}
+			}
+			lineStr := strings.TrimSpace(line)
+			if lineStr == ""{
+				continue
+			}
+			lineFsList := strings.Fields(lineStr)
+			if len(lineFsList) > 0{
+				key := lineFsList[0]
+				lineFsList[0] = bhMap[key]
+			}
+			fmt.Println(strings.Join(lineFsList,"  "))
+		}
+		defer transFile.Close()
+
+
+
 	}
-	wg.Wait()
+
+
+
+
+
 }
