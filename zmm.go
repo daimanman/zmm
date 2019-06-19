@@ -224,9 +224,10 @@ func main() {
 		}
 
 		if *BH == "" {
-
 			panic(fmt.Sprintf("%s %s\n","未指定编号替换文件"," 请通过 -BH 参数指定, Example: -BH=bh.txt"))
 		}
+		var errFile *os.File
+		var errWriter *bufio.Writer
 
 		transFile,err  := os.Open(files[0])
 		if err != nil {
@@ -248,7 +249,26 @@ func main() {
 			lineFsList := strings.Fields(lineStr)
 			if len(lineFsList) > 0{
 				key := lineFsList[0]
-				lineFsList[0] = bhMap[key]
+				val := bhMap[key]
+				if val != "" {
+					lineFsList[0] = val
+				}else{
+
+					if errFile == nil {
+						errFile,_ = os.Create("error.log")
+					}
+
+					if errFile != nil && errWriter ==  nil {
+						errWriter = bufio.NewWriter(errFile)
+						defer errWriter.Flush()
+					}
+
+					if errWriter != nil {
+						errWriter.WriteString(fmt.Sprintf("未在 %s 文件中找到 %s 对应的编号 \n",*BH,key))
+					}
+
+
+				}
 			}
 			fmt.Println(strings.Join(lineFsList,"  "))
 		}
